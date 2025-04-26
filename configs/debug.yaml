@@ -1,0 +1,5 @@
+_BASE_: "disasteradaptivenet_event.yaml"
+DEBUG: True
+
+TRAINER:
+  BATCH_SIZE: 1

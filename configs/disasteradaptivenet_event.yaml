@@ -1,0 +1,7 @@
+_BASE_: "base.yaml"
+
+MODEL:
+  TYPE: 'disasterfilmnet'
+
+DATASET:
+  INCLUDE_CONDITIONING_INFORMATION: True

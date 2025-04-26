@@ -1,0 +1,112 @@
+SEED: 321
+RANDOM_SEED: False
+DEBUG: False
+LOG_FREQ: 100
+LOG_MAX_SAMPLES: 250
+
+INFERENCE:
+  REGRESSION: False
+  DAMAGE_THRESHOLDS: [0, 0.25, 0.5, 0.75, 1]
+  USE_TRICKS: False
+  USE_ALL_FLIPS: True
+  RANDOM_CONDITIONING: False
+  OBJECT_BASED: False
+
+TRAINER:
+  OPTIMIZER: 'AdamW'
+  LEARNING_RATE: 2e-4
+  WEIGHT_DECAY: 1e-6
+  BATCH_SIZE: 16
+  EPOCHS: 40
+  SCHEDULER:
+    TYPE: 'MultiStep'
+    MILESTONES: [5, 11, 17, 23, 29, 33]
+    GAMMA: 0.5
+  LOSS:
+    TYPE: 'ComboLoss'
+    WEIGHTS:
+      dice: 1
+      focal: 1
+    CLASS_WEIGHTS: 'equal'
+    ONLY_BUILDINGS: True
+
+MODEL:
+  TYPE: 'baseline'
+  IN_CHANNELS: 3
+  OUT_CHANNELS: 5
+
+AUGMENTATION:
+  FLIP: True
+  ROTATE: True
+  AFFINE: True
+  SMART_CROP: True
+  SIMPLE_CROP: False
+  CROP_SIZE: 512
+  REGRESSION_NOISE: False
+  SMART_CROP_WEIGHTS: False
+
+DATALOADER:
+  NUM_WORKER: 8
+  SHUFFLE: True
+  NORMALIZE_IMAGES: True
+  DAMAGE_ONEHOTENCODING: True
+  NUMPY2TORCH: True
+
+DATASET:
+  NAME: 'xBD'
+  SPLIT: 'no_overlap'
+  OVERSAMPLE_BUILDINGS: True
+  INCLUDE_CONDITIONING_INFORMATION: False
+  EXCLUDE_UNDAMAGED: False
+  EXCLUDE_EVENTS: []
+  TRAIN_EVENTS: [
+    'lower-puna-volcano',
+    'palu-tsunami',
+    'mexico-earthquake',
+    'socal-fire',
+    'woolsey-fire',
+    'portugal-wildfire',
+    'pinery-bushfire',
+    'midwest-flooding',
+    'moore-tornado',
+    'joplin-tornado',
+    'hurricane-harvey',
+    'hurricane-michael',
+    'hurricane-florence',
+  ]
+  TEST_EVENTS: [
+    'nepal-flooding',
+    'guatemala-volcano',
+    'sunda-tsunami',
+    'santa-rosa-wildfire',
+    'hurricane-matthew',
+    'tuscaloosa-tornado',
+  ]
+  EVENT_CONDITIONING: { # peril from metadata with tsunami mapped to earthquakes
+    'lower-puna-volcano': 'volcano',
+    'palu-tsunami': 'earthquake',
+    'mexico-earthquake': 'earthquake',
+    'socal-fire': 'wildfire',
+    'woolsey-fire': 'wildfire',
+    'portugal-wildfire': 'wildfire',
+    'pinery-bushfire': 'wildfire',
+    'nepal-flooding': 'flood',
+    'midwest-flooding': 'flood',
+    'moore-tornado': 'storm',
+    'joplin-tornado': 'storm',
+    'hurricane-florence': 'flood',
+    'hurricane-harvey': 'flood',
+    'hurricane-michael': 'storm',
+    'tuscaloosa-tornado': 'storm',
+    'guatemala-volcano': 'volcano',
+    'sunda-tsunami': 'earthquake',
+    'santa-rosa-wildfire': 'wildfire',
+    'hurricane-matthew': 'storm',
+  }
+  CONDITIONING_KEY: {
+    'wildfire': 0,
+    'volcano': 1,
+    'earthquake': 2,
+    'storm': 3,
+    'flood': 4,
+  }

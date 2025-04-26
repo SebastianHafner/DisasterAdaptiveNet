@@ -1,0 +1,4 @@
+_BASE_: "base.yaml"
+
+DATASET:
+  SPLIT: 'legacy'

@@ -1,0 +1,8 @@
+_BASE_: "base.yaml"
+
+MODEL:
+  TYPE: 'disasterfilmnet'
+
+DATASET:
+  SPLIT: 'legacy'
+  INCLUDE_CONDITIONING_INFORMATION: True

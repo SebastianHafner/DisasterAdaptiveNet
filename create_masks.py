@@ -19,8 +19,7 @@ sys.setrecursionlimit(10000)
 
 ###To be changed####
 dataset_dir = Path('C:/Users/shafner/datasets/xview2')
-# dirs = ['test', 'train', 'tier3']
-dirs = ['tier3']
+dirs = ['hold', 'test', 'tier3', 'train']
 
 
 def mask_for_polygon(poly, im_size=(1024, 1024)):

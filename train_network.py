@@ -9,29 +9,27 @@ from torch.utils import data as torch_data
 import wandb
 import numpy as np
 import random
-from pathlib import Path
 
-from utils import datasets, loss_factory, evaluation, experiment_manager, parsers, scheduler_factory, measurers, metrics
+from utils import datasets, losses, evaluation, experiment_manager, parsers, schedulers, measurers, metrics, models
 from utils.experiment_manager import CfgNode
-from models import model_factory
 
 
-def run_training(cfg: CfgNode, fast_training: bool = False):
-    net = model_factory.create_network(cfg)
+def run_training(cfg: CfgNode):
+    net = models.create_network(cfg)
     net.to(device)
 
     optimizer = optim.AdamW(net.parameters(), lr=cfg.TRAINER.LEARNING_RATE, weight_decay=0.01)
-    scheduler = scheduler_factory.get_scheduler(cfg, optimizer)
-    criterion = loss_factory.get_criterion(cfg)
+    scheduler = schedulers.get_scheduler(cfg, optimizer)
+    criterion = losses.ComboLoss(weights=cfg.TRAINER.LOSS.WEIGHTS)
 
-    losses, losses_loc, losses_dmg = measurers.AverageMeter(), measurers.AverageMeter(), measurers.AverageMeter()
-    dices = measurers.AverageMeter()
-    measurers_list = [losses, losses_loc, losses_dmg, dices]
+    m_total, m_loc, m_dmg = measurers.AverageMeter(), measurers.AverageMeter(), measurers.AverageMeter()
+    m_dice = measurers.AverageMeter()
+    measurers_list = [m_total, m_loc, m_dmg, m_dice]
 
     # reset the generators
     dataset = datasets.xBDDataset(cfg, run_type='train')
     print(dataset)
-    class_weights = loss_factory.loss_class_weights(cfg.TRAINER.LOSS.CLASS_WEIGHTS, dataset.get_class_counts())
+    class_weights = losses.loss_class_weights(cfg.TRAINER.LOSS.CLASS_WEIGHTS, dataset.get_class_counts())
 
     dataloader_kwargs = {
         'batch_size': cfg.TRAINER.BATCH_SIZE,
@@ -50,7 +48,6 @@ def run_training(cfg: CfgNode, fast_training: bool = False):
     global_step = epoch_float = 0
 
     best_val_loss = -10e6
-    # _ = evaluation.model_evaluation(net, cfg, device, 'val', epoch_float, global_step)
     for epoch in range(1, epochs + 1):
         print(f'Starting epoch {epoch}/{epochs}.')
         wandb.log({
@@ -82,10 +79,10 @@ def run_training(cfg: CfgNode, fast_training: bool = False):
                 y_hat = torch.sigmoid(logits[:, 0])
                 dice_sc = 1 - metrics.dice_round(y_hat, msk[:, 0])
 
-            losses_loc.update(loss_loc.item(), x.size(0))
-            losses_dmg.update(loss_dmg.item(), x.size(0))
-            losses.update(loss.item(), x.size(0))
-            dices.update(dice_sc, x.size(0))
+            m_loc.update(loss_loc.item(), x.size(0))
+            m_dmg.update(loss_dmg.item(), x.size(0))
+            m_total.update(loss.item(), x.size(0))
+            m_dice.update(dice_sc, x.size(0))
 
             loss.backward()
             optimizer.step()
@@ -97,10 +94,10 @@ def run_training(cfg: CfgNode, fast_training: bool = False):
                 print(f'Logging step {global_step} (epoch {epoch_float:.2f}).')
                 time = timeit.default_timer() - start
                 wandb.log({
-                    'train_loss_loc': losses_loc.avg,
-                    'train_loss_dmg': losses_dmg.avg,
-                    'train_loss': losses.avg,
-                    'train_dice': dices.avg,
+                    'train_loss_loc': m_loc.avg,
+                    'train_loss_dmg': m_dmg.avg,
+                    'train_loss': m_total.avg,
+                    'train_dice': m_dice.avg,
                     'time': time,
                     'step': global_step,
                     'epoch': epoch_float,
@@ -115,20 +112,19 @@ def run_training(cfg: CfgNode, fast_training: bool = False):
         if scheduler is not None:
             scheduler.step()
         # evaluation at the end of an epoch
-        if not (fast_training and epoch < 20):
-            val_loss = evaluation.model_evaluation(net, cfg, device, 'val', epoch_float, global_step)
-            if val_loss > best_val_loss:
-                model_factory.save_checkpoint(net, optimizer, epoch_float, cfg)
-                best_val_loss = val_loss
-                wandb.log({
-                    "best_val_loss": best_val_loss,
-                    'step': global_step,
-                    'epoch': epoch_float,
-                })
+        val_loss = evaluation.model_evaluation(net, cfg, device, 'val', epoch_float, global_step)
+        if val_loss > best_val_loss:
+            models.save_checkpoint(net, optimizer, epoch_float, cfg)
+            best_val_loss = val_loss
+            wandb.log({
+                "best_val_loss": best_val_loss,
+                'step': global_step,
+                'epoch': epoch_float,
+            })
 
 
 if __name__ == '__main__':
-    args = parsers.training_argument_parser().parse_known_args()[0]
+    args = parsers.argument_parser().parse_known_args()[0]
     cfg = experiment_manager.setup_cfg(args)
     print(cfg.NAME)
 
@@ -147,14 +143,13 @@ if __name__ == '__main__':
     wandb.init(
         name=cfg.NAME,
         config=cfg,
-        project=args.wandb_project,
+        project='disasteradaptivenet',
         tags=['building localization', 'damage detection', 'xBD', ],
         mode='online' if not cfg.DEBUG else 'disabled',
-        dir=Path(args.output_dir) / 'wandb',
     )
 
     try:
-        run_training(cfg, fast_training=parsers.str2bool(args.fast_training))
+        run_training(cfg)
     except KeyboardInterrupt:
         try:
             sys.exit(0)

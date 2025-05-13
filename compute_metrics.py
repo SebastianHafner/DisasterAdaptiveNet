@@ -410,6 +410,6 @@ class XviewMetrics:
 
 
 if __name__ == '__main__':
-    args = parsers.prediction_argument_parser().parse_known_args()[0]
+    args = parsers.argument_parser().parse_known_args()[0]
     cfg = experiment_manager.setup_cfg(args)
     XviewMetrics.get_score(cfg)

@@ -29,17 +29,10 @@ class AbstractxBDDataset(torch.utils.data.Dataset):
 
         # split legacy/new
         self.split = cfg.DATASET.SPLIT
-        if self.split == 'legacy':
+        if self.split == 'xview2':
             self.samples_splits = self.get_samples_legacy()
-        elif self.split == 'legacy_disasters':
-            self.samples_splits = self.get_samples_legacy()
-            events = [e for e, d in cfg.DATASET.EVENT_CONDITIONING.items() if d == cfg.DATASET.DISASTER]
-            for split in ['train', 'val', 'test']:
-                self.samples_splits[split] = [s for s in self.samples_splits[split] if s['event'] in events]
-        elif self.split == 'no_overlap':
+        elif self.split == 'event':
             self.samples_splits = self.get_samples()
-        elif self.split == 'changeos':
-            self.samples_splits = self.get_samples_changeos()
         else:
             raise NotImplementedError()
 
@@ -67,12 +60,6 @@ class AbstractxBDDataset(torch.utils.data.Dataset):
         msk_post_file = self.root_path / subset / 'masks' / f'{event}_{patch_id}_post_disaster.png'
         msk_post = cv2.imread(str(msk_post_file), cv2.IMREAD_UNCHANGED)
         return msk_pre, msk_post
-
-    def load_buildings(self, subset: str, event: str, patch_id: str) -> np.ndarray:
-        # building id
-        buildings_file = self.root_path / subset / 'buildings' / f'{event}_{patch_id}_buildings.png'
-        buildings = cv2.imread(str(buildings_file), cv2.IMREAD_UNCHANGED)
-        return buildings
 
     def get_samples_legacy(self) -> Dict:
         """Get train/val split stratified by disaster name."""
@@ -143,31 +130,6 @@ class AbstractxBDDataset(torch.utils.data.Dataset):
             'train': [trainval_samples[i] for i in train_indices],
             'val': [trainval_samples[i] for i in val_indices],
             'test': [s for s in all_samples if s['event'] in self.test_events],
-        }
-        return samples
-
-    def get_samples_changeos(self) -> Dict:
-        subsets = ['train', 'tier3']
-        train_patches = []
-        for subset in subsets:
-            train_patches.extend(self.metadata[subset]['patches'])
-
-        if self.cfg.DATASET.OVERSAMPLE_BUILDINGS:
-            # Oversample images that contain buildings. But seems to oversample damage > minor damage?
-            # This should lead to roughly 50-50 distribution between images with and without buildings.
-            train_patches_new = list(train_patches)
-            for s in train_patches:
-                fl = np.zeros(4, dtype=bool)
-                for c in range(1, 5):
-                    fl[c - 1] = s[f'cls_{c}'] > 0
-                if fl[1:].max():
-                    train_patches_new.append(s)
-            train_patches = train_patches_new
-
-        samples = {
-            'train': train_patches,
-            'val': self.metadata['test']['patches'],
-            'test': self.metadata['hold']['patches'],
         }
         return samples
 

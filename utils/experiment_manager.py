@@ -1,9 +1,3 @@
-import argparse
-import logging
-from argparse import ArgumentParser
-from tabulate import tabulate
-from collections import OrderedDict
-import yaml
 from fvcore.common.config import CfgNode as _CfgNode
 from pathlib import Path
 
@@ -40,19 +34,15 @@ def new_config():
     Creates a new config based on the default config file
     :return:
     '''
-
     C = CfgNode()
-
-    C.CONFIG_DIR = 'config/'
-
     C.PATHS = CfgNode()
+    C.INFERENCE = CfgNode()
     C.TRAINER = CfgNode()
     C.MODEL = CfgNode()
+    C.AUGMENTATION = CfgNode()
     C.DATALOADER = CfgNode()
-    C.AUGMENTATIONS = CfgNode()
-    C.CONSISTENCY_TRAINER = CfgNode()
-    C.DATASETS = CfgNode()
-
+    C.DATASET = CfgNode()
+    C.CONFIG_DIR = 'config/'
     return C.clone()
 
 
